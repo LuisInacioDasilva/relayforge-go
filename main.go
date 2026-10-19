@@ -27,6 +27,7 @@ import (
 var webAssets embed.FS
 
 var idPattern = regexp.MustCompile(`^[A-Za-z0-9:_-]{3,80}$`)
+var kindPattern = regexp.MustCompile(`^[A-Za-z0-9:._-]{3,80}$`)
 
 type incoming struct { ID string `json:"id"`; Kind string `json:"kind"`; Payload json.RawMessage `json:"payload"` }
 
@@ -55,7 +56,7 @@ func routes(store *relay.Store, apiKey string) http.Handler {
         var data incoming
         if err := decoder.Decode(&data); err != nil { writeJSON(w, 400, map[string]string{"error":"invalid json or payload too large"}); return }
         if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) { writeJSON(w, 400, map[string]string{"error":"multiple json values"}); return }
-        if !idPattern.MatchString(data.ID) || !idPattern.MatchString(data.Kind) || len(data.Payload) == 0 || !json.Valid(data.Payload) { writeJSON(w, 422, map[string]string{"error":"invalid event"}); return }
+        if !idPattern.MatchString(data.ID) || !kindPattern.MatchString(data.Kind) || len(data.Payload) == 0 || !json.Valid(data.Payload) { writeJSON(w, 422, map[string]string{"error":"invalid event"}); return }
         created, err := store.Enqueue(relay.Job{ID:data.ID, Kind:data.Kind, Payload:data.Payload})
         if err != nil { log.Printf("enqueue: %v",err); writeJSON(w, 500, map[string]string{"error":"storage unavailable"}); return }
         status := 202; if !created { status = 200 }
